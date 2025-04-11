@@ -59,17 +59,17 @@ class SingleAdministrativeDocument(Document):
         for doc_type in required_docs:
             if doc_type not in submitted_docs:
                 frappe.throw(f"{doc_type} is required")
-    
-    def calculate_totals(self):
-        """Calculate total values including taxes"""
-        self.total_value = sum(item.customs_value for item in self.items)
-        self.total_weight = sum(item.weight for item in self.items)
+
+    # def calculate_totals(self):
+    #     """Calculate total values including taxes"""
+    #     self.total_value = sum(item.customs_value for item in self.items)
+    #     self.total_weight = sum(item.weight for item in self.items)
         
-        # Calculate tax totals
-        self.total_duty = sum(item.duty_amount for item in self.items)
-        self.total_vat = sum(item.vat_amount for item in self.items)
-        self.total_excise = sum(item.dc_amount for item in self.items)
-        self.total_payable = self.total_duty + self.total_vat + self.total_excise
+    #     # Calculate tax totals
+    #     self.total_duty = sum(item.duty_amount for item in self.items)
+    #     self.total_vat = sum(item.vat_amount for item in self.items)
+    #     self.total_excise = sum(item.dc_amount for item in self.items)
+    #     self.total_payable = self.total_duty + self.total_vat + self.total_excise
     
     def on_submit(self):
         """Handle submission"""
@@ -78,3 +78,40 @@ class SingleAdministrativeDocument(Document):
     def on_cancel(self):
         """Handle cancellation"""
         self.status = "Cancelled"
+
+@frappe.whitelist()
+def calculate_totals():
+    # Extract items from frappe.form_dict
+    items = frappe.form_dict.get("items", None)
+
+    if not items:
+        frappe.throw("Missing 'items' argument.")
+
+    # If items is a JSON string, parse it
+    import json
+    if isinstance(items, str):
+        try:
+            items = json.loads(items)
+        except json.JSONDecodeError:
+            frappe.throw("Failed to parse 'items' as JSON.")
+
+    # Ensure items is a list of dictionaries
+    if not isinstance(items, list):
+        frappe.throw("Invalid items data format. Expected a list of dictionaries.")
+
+    # Perform calculations
+    total_value = sum(item.get('customs_value', 0) for item in items)
+    total_weight = sum(item.get('weight', 0) for item in items)
+    total_duty = sum(item.get('duty_amount', 0) for item in items)
+    total_vat = sum(item.get('vat_amount', 0) for item in items)
+    total_excise = sum(item.get('dc_amount', 0) for item in items)
+    total_payable = total_duty + total_vat + total_excise
+
+    return {
+        'total_value': total_value,
+        'total_weight': total_weight,
+        'total_duty': total_duty,
+        'total_vat': total_vat,
+        'total_excise': total_excise,
+        'total_payable': total_payable,
+    }
